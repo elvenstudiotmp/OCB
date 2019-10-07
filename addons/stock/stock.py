@@ -2382,7 +2382,10 @@ class stock_move(osv.osv):
                     procurement_obj.cancel(cr, uid, procurement_ids, context=context)
             else:
                 if move.move_dest_id:
-                    if move.propagate:
+                    # ElvenStudio FIX:
+                    # Avoid cancel of a destination move already transferred (even partially)
+                    # The user need to cancel manually the outgoing movement, if needed
+                    if move.propagate and move.move_dest_id.state != 'done':
                         self.action_cancel(cr, uid, [move.move_dest_id.id], context=context)
                     elif move.move_dest_id.state == 'waiting':
                         #If waiting, the chain will be broken and we are not sure if we can still wait for it (=> could take from stock instead)
