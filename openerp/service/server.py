@@ -568,7 +568,8 @@ class PreforkServer(CommonServer):
             if not self.long_polling_pid:
                 self.long_polling_spawn()
         while len(self.workers_cron) < config['max_cron_threads']:
-            self.worker_spawn(WorkerCron, self.workers_cron)
+            wc = self.worker_spawn(WorkerCron, self.workers_cron)
+            wc.register_cron()
 
     def sleep(self):
         try:
@@ -870,6 +871,67 @@ class WorkerCron(Worker):
         if self.multi.socket:
             self.multi.socket.close()
 
+    def close(self):
+        self.unregister_cron()
+
+        super(WorkerCron, self).close()
+
+    def register_cron(self):
+        _logger.debug("REGISTER CRON")
+        import json
+        for db_name in self._db_list():
+            db = openerp.sql_db.db_connect(db_name)
+            cr = db.cursor()
+            workers_server = []
+
+            # get existing values
+            cr.execute("select value from ir_config_parameter WHERE key='workers_cron'")
+            paramenter = cr.fetchone()
+            if paramenter:
+                workers_server = json.loads(paramenter[0])
+
+            if self.pid not in workers_server:
+                workers_server.append(self.pid)
+
+            # update existing values
+            if not paramenter:
+                query = "INSERT INTO ir_config_parameter (key, value) VALUES ('workers_cron', '%s')" % (json.dumps(workers_server))
+            else:
+                query = "UPDATE ir_config_parameter SET value= '%s' WHERE key = 'workers_cron'" % (json.dumps(workers_server))
+            cr.execute(query)
+            cr.commit()
+
+            cr.close()
+
+    def unregister_cron(self):
+        _logger.debug("UNREGISTER CRON")
+        import json
+        for db_name in self._db_list():
+            db = openerp.sql_db.db_connect(db_name)
+            cr = db.cursor()
+            workers_server = []
+
+            # get existing values
+            cr.execute("select value from ir_config_parameter WHERE key='workers_cron'")
+            paramenter = cr.fetchone()
+            if paramenter:
+                workers_server = json.loads(paramenter[0])
+
+            if self.pid in workers_server:
+                workers_server.remove(self.pid)
+
+            # update existing values
+            if not paramenter:
+                query = "INSERT INTO ir_config_parameter (key, value) VALUES ('workers_cron', '%s')" % (
+                    json.dumps(workers_server))
+            else:
+                query = "UPDATE ir_config_parameter SET value= '%s' WHERE key = 'workers_cron'" % (
+                    json.dumps(workers_server))
+            cr.execute(query)
+
+            cr.commit()
+            cr.close()
+
 #----------------------------------------------------------
 # start/stop public api
 #----------------------------------------------------------
@@ -963,6 +1025,7 @@ def start(preload=None, stop=False):
     if openerp.evented:
         server = GeventServer(openerp.service.wsgi_server.application)
     elif config['workers']:
+        clear_regitered_workers()
         server = PreforkServer(openerp.service.wsgi_server.application)
     else:
         server = ThreadedServer(openerp.service.wsgi_server.application)
@@ -990,5 +1053,59 @@ def restart():
         threading.Thread(target=_reexec).start()
     else:
         os.kill(server.pid, signal.SIGHUP)
+
+def clear_regitered_workers():
+    import json
+
+    if config['db_name']:
+        db_names = config['db_name'].split(',')
+    else:
+        db_names = openerp.service.db.exp_list(True)
+
+    for db_name in db_names:
+        db = openerp.sql_db.db_connect(db_name)
+        cr = db.cursor()
+        workers_server = []
+
+        # get existing values
+        cr.execute("select value from ir_config_parameter WHERE key='workers_cron'")
+        paramenter = cr.fetchone()
+
+        # update existing values
+        if not paramenter:
+            query = "INSERT INTO ir_config_parameter (key, value) VALUES ('workers_cron', '%s')" % (json.dumps([]))
+        else:
+            query = "UPDATE ir_config_parameter SET value= '%s' WHERE key = 'workers_cron'" % (json.dumps([]))
+        cr.execute(query)
+
+        cr.commit()
+        cr.close()
+
+def get_worker_slot(pid):
+    import json
+
+    if config['db_name']:
+        db_names = config['db_name'].split(',')
+    else:
+        db_names = openerp.service.db.exp_list(True)
+
+    for db_name in db_names:
+        db = openerp.sql_db.db_connect(db_name)
+        cr = db.cursor()
+        workers_server = []
+
+        # get existing values
+        cr.execute("select value from ir_config_parameter WHERE key='workers_cron'")
+        parameter = cr.fetchone()
+        cr.close()
+
+        if parameter:
+            workers_server = json.loads(parameter[0])
+
+        result = 0
+        if pid in workers_server:
+            result = workers_server.index(pid) + 1
+
+        return result
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
