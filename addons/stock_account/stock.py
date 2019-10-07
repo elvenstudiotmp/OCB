@@ -203,11 +203,18 @@ class stock_picking(osv.osv):
         for pick in self.browse(cr, uid, ids, context=context):
             result[pick.id] = 'none'
             for move in pick.move_lines:
-                if move.invoice_state == 'invoiced':
-                    result[pick.id] = 'invoiced'
-                elif move.invoice_state == '2binvoiced':
-                    result[pick.id] = '2binvoiced'
-                    break
+                # ElvenStudio FIX -- Esclusione stock.move annullate dal calcolo della fatturazione
+                # Data una stock.picking con questa configurazione:
+                #  - stato: trasferita, controllo fatturazione: da fatturare
+                #  - due stock.move, una trasferita e una annullata (entrambe da fatturare)
+                # Dopo la fatturazione da prelievi, il picking resta 'da fatturare', perché
+                # il campo calcolato non esclude le move annullate, che non verranno mai fatturate.
+                if move.state != 'cancel':
+                    if move.invoice_state == 'invoiced':
+                        result[pick.id] = 'invoiced'
+                    elif move.invoice_state == '2binvoiced':
+                        result[pick.id] = '2binvoiced'
+                        break
         return result
 
     def __get_picking_move(self, cr, uid, ids, context={}):
