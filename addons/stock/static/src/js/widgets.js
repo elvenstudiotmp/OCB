@@ -157,9 +157,11 @@ function openerp_picking_widgets(instance){
             });
             this.$('.oe_searchbox').blur(function(){
                 self.getParent().barcode_scanner.connect(function(ean){
-                    self.get_Parent().scan(ean);
+                    // ElvenStudio FIX
+                    // self.get_Parent().scan(ean)
+                    self.getParent().scan(ean);
                 });
-            })
+            });
             this.$('#js_select').change(function(){
                 var selection = self.$('#js_select option:selected').attr('value');
                 if (selection === "ToDo"){
@@ -625,11 +627,13 @@ function openerp_picking_widgets(instance){
             this.barcode_scanner = new module.BarcodeScanner();
             this.locations = [];
             this.uls = [];
-            if(this.picking_id){
-                this.loaded =  this.load(this.picking_id);
-            }else{
-                this.loaded =  this.load();
-            }
+            // ElvenStudio Fix: moved in the start function
+
+            // if(this.picking_id){
+            //     this.loaded =  this.load(this.picking_id);
+            // }else{
+            //     this.loaded =  this.load();
+            // }
 
         },
 
@@ -751,6 +755,12 @@ function openerp_picking_widgets(instance){
             this.$('.js_pick_menu').click(function(){ self.menu(); });
             this.$('.js_reload_op').click(function(){ self.reload_pack_operation();});
 
+            // ElvenStudio Fix: moved from init function
+            if(this.picking_id){
+                this.loaded =  this.load(this.picking_id);
+            }else{
+                this.loaded =  this.load();
+            }
             $.when(this.loaded).done(function(){
                 self.picking_editor = new module.PickingEditorWidget(self);
                 self.picking_editor.replace(self.$('.oe_placeholder_picking_editor'));
