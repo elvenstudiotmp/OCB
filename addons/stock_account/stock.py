@@ -358,7 +358,10 @@ class stock_picking(osv.osv):
                     invoice_line_vals['invoice_line_tax_id'] = extra_move_tax[0, move.product_id]
 
             move_obj._create_invoice_line_from_vals(cr, uid, move, invoice_line_vals, context=context)
-            move_obj.write(cr, uid, move.id, {'invoice_state': 'invoiced'}, context=context)
+
+            # Fix #8654 --- [FIX] purchase, stock_account: invoice_state in stock.move
+            # https://github.com/odoo/odoo/pull/8654/files
+            # move_obj.write(cr, uid, move.id, {'invoice_state': 'invoiced'}, context=context)
 
         invoice_obj.button_compute(cr, uid, invoices.values(), context=context, set_total=(inv_type in ('in_invoice', 'in_refund')))
         return invoices.values()
