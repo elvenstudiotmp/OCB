@@ -290,7 +290,10 @@ class stock_picking(osv.osv):
     def _get_invoice_vals(self, cr, uid, key, inv_type, journal_id, move, context=None):
         if context is None:
             context = {}
-        partner, currency_id, company_id, user_id = key
+
+        # ElvenStudio FIX: make unique-key extendable
+        partner, currency_id, company_id, user_id = key[0:4]
+
         if inv_type in ('out_invoice', 'out_refund'):
             account_id = partner.property_account_receivable.id
             payment_term = partner.property_payment_term.id or False
@@ -311,6 +314,12 @@ class stock_picking(osv.osv):
             'journal_id': journal_id,
         }
 
+    def _get_invoice_line_unique_key(self, cr, uid, inv_type, move, partner, user_id, currency_id):
+        # The first 4 elements remain the same as the original.
+        # Other can be added extending this method.
+        key = (partner, currency_id, move.company_id.id, user_id)
+        return key
+
     def _invoice_create_line(self, cr, uid, moves, journal_id, inv_type='out_invoice', context=None):
         invoice_obj = self.pool.get('account.invoice')
         move_obj = self.pool.get('stock.move')
@@ -322,7 +331,8 @@ class stock_picking(osv.osv):
             origin = move.picking_id.name
             partner, user_id, currency_id = move_obj._get_master_data(cr, uid, move, company, context=context)
 
-            key = (partner, currency_id, company.id, uid)
+            # ElvenStudio FIX: make unique-key extendable
+            key = self._get_invoice_line_unique_key(cr, uid, inv_type, move, partner, user_id, currency_id)
             invoice_vals = self._get_invoice_vals(cr, uid, key, inv_type, journal_id, move, context=context)
 
             if key not in invoices:
