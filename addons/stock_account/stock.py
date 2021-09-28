@@ -314,7 +314,7 @@ class stock_picking(osv.osv):
             'journal_id': journal_id,
         }
 
-    def _get_invoice_line_unique_key(self, cr, uid, inv_type, move, partner, user_id, currency_id):
+    def _get_invoice_line_unique_key(self, cr, uid, inv_type, move, partner, user_id, currency_id, context=None):
         # The first 4 elements remain the same as the original.
         # Other can be added extending this method.
         key = (partner, currency_id, move.company_id.id, user_id)
@@ -332,7 +332,7 @@ class stock_picking(osv.osv):
             partner, user_id, currency_id = move_obj._get_master_data(cr, uid, move, company, context=context)
 
             # ElvenStudio FIX: make unique-key extendable
-            key = self._get_invoice_line_unique_key(cr, uid, inv_type, move, partner, user_id, currency_id)
+            key = self._get_invoice_line_unique_key(cr, uid, inv_type, move, partner, user_id, currency_id, context=context)
             invoice_vals = self._get_invoice_vals(cr, uid, key, inv_type, journal_id, move, context=context)
 
             if key not in invoices:
