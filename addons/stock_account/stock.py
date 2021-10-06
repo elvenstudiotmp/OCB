@@ -328,7 +328,8 @@ class stock_picking(osv.osv):
         product_price_unit = {}
         for move in moves:
             company = move.company_id
-            origin = move.picking_id.name
+            # ElvenStudio FIX: no origin/name
+            # origin = move.picking_id.name
             partner, user_id, currency_id = move_obj._get_master_data(cr, uid, move, company, context=context)
 
             # ElvenStudio FIX: make unique-key extendable
@@ -339,20 +340,24 @@ class stock_picking(osv.osv):
                 # Get account and payment terms
                 invoice_id = self._create_invoice_from_picking(cr, uid, move.picking_id, invoice_vals, context=context)
                 invoices[key] = invoice_id
-            else:
-                invoice = invoice_obj.browse(cr, uid, invoices[key], context=context)
-                merge_vals = {}
-                if not invoice.origin or invoice_vals['origin'] not in invoice.origin.split(', '):
-                    invoice_origin = filter(None, [invoice.origin, invoice_vals['origin']])
-                    merge_vals['origin'] = ', '.join(invoice_origin)
-                if invoice_vals.get('name', False) and (not invoice.name or invoice_vals['name'] not in invoice.name.split(', ')):
-                    invoice_name = filter(None, [invoice.name, invoice_vals['name']])
-                    merge_vals['name'] = ', '.join(invoice_name)
-                if merge_vals:
-                    invoice.write(merge_vals)
+
+            # ElvenStudio FIX: no origin/name
+            # else:
+            #     invoice = invoice_obj.browse(cr, uid, invoices[key], context=context)
+            #     merge_vals = {}
+            #     if not invoice.origin or invoice_vals['origin'] not in invoice.origin.split(', '):
+            #         invoice_origin = filter(None, [invoice.origin, invoice_vals['origin']])
+            #         merge_vals['origin'] = ', '.join(invoice_origin)
+            #     if invoice_vals.get('name', False) and (not invoice.name or invoice_vals['name'] not in invoice.name.split(', ')):
+            #         invoice_name = filter(None, [invoice.name, invoice_vals['name']])
+            #         merge_vals['name'] = ', '.join(invoice_name)
+            #     if merge_vals:
+            #         invoice.write(merge_vals)
             invoice_line_vals = move_obj._get_invoice_line_vals(cr, uid, move, partner, inv_type, context=dict(context, fp_id=invoice_vals.get('fiscal_position', False)))
             invoice_line_vals['invoice_id'] = invoices[key]
-            invoice_line_vals['origin'] = origin
+            # ElvenStudio FIX: no origin/name
+            # invoice_line_vals['origin'] = origin
+
             if not is_extra_move[move.id]:
                 product_price_unit[invoice_line_vals['product_id'], invoice_line_vals['uos_id']] = invoice_line_vals['price_unit']
             if is_extra_move[move.id] and (invoice_line_vals['product_id'], invoice_line_vals['uos_id']) in product_price_unit:
